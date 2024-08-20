@@ -1,0 +1,26 @@
+{
+  "name": "gn-schnapsen-client",
+  "version": "0.1.0",
+  "module": "index.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc"
+  },
+  "files": [
+    "lib/**/*"
+  ],
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@types/ping": "^0.4.4",
+    "events": "^3.3.0",
+    "gn-matchmaker-client": "^0.1.5",
+    "ping": "^0.4.4",
+    "socket.io-client": "^4.7.5",
+    "typescript": "^5.5.4"
+  }
+}
