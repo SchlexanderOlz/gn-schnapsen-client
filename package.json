@@ -4,10 +4,13 @@
   "module": "index.ts",
   "type": "module",
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "prepare": "cpy 'lib/**/*' .",
+    "postpublish": "rm -rf *.d.ts && rm -rf *.js"
   },
   "files": [
-    "lib/**/*"
+    "*.js",
+    "*.d.ts"
   ],
   "devDependencies": {
     "@types/bun": "latest"
