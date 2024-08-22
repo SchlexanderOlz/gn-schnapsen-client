@@ -7,7 +7,7 @@ import {
   type SearchInfo,
 } from "gn-matchmaker-client";
 
-import { SchnapsenClient, SchnapsenClientBuilder } from "../src/index";
+import SchnapsenClient,  { SchnapsenClientBuilder } from "../src/index";
 
 let instance = new MatchMaker(
   "http://127.0.0.1:4000",

@@ -6,113 +6,66 @@ import {
   type Match,
   type SearchInfo,
 } from "gn-matchmaker-client";
-
-export enum CardVal {
-  Ten = "Ten",
-  Jack = "Jack",
-  Queen = "Queen",
-  King = "King",
-  Ace = "Ace",
-}
-
-export enum CardSuit {
-  Hearts = "Hearts",
-  Diamonds = "Diamonds",
-  Clubs = "Clubs",
-  Spades = "Spades",
-}
-
-export interface Card {
-  value: CardVal;
-  suit: CardSuit;
-}
-
-export interface Event {
-  event: string;
-  data: any;
-}
-
-interface UserIdEvent extends Event {
-  data: {
-    user_id: string;
-  };
-}
-
-export interface Active extends UserIdEvent {}
-export interface Inactive extends UserIdEvent {}
-export interface Trick extends UserIdEvent {
-  data: {
-    user_id: string;
-    cards: [Card, Card];
-  };
-}
-
-export interface TrumpChange extends Event {
-  data: Card;
-}
-
-interface CardEvent extends Event {
-  data: Card;
-}
-
-export interface CardAvailable extends CardEvent {}
-
-export interface CardUnavailable extends CardEvent {}
-
-export interface CardPlayable extends CardEvent {}
-export interface CardNotPlayable extends CardEvent {}
-
-export interface PlayCard extends UserIdEvent {
-  data: {
-    user_id: string;
-    card: Card;
-  };
-}
-
-export interface FinalResult extends Event {
-  data: {
-    winner: string;
-    ranked: any;
-  };
-}
-
-export interface RoundResult extends Event {
-  data: {
-    winner: string;
-    ranked: any;
-    points: number;
-  };
-}
+import type {
+  Active,
+  Announcement,
+  CanAnnounce,
+  CannotAnnounce,
+  Card,
+  CardAvailable,
+  CardNotPlayable,
+  CardPlayable,
+  CardUnavailable,
+  FinalResult,
+  Inactive,
+  PlayCard,
+  RoundResult,
+  Trick,
+  TrumpChange,
+  TrumpChangeImpossible,
+  TrumpChangePossible,
+} from "./types";
+export * as types from "./types";
 
 interface SchnapsenClientEvents {
-  "self:active": null;
+  // General Events
   active: Active;
-  inactive: Inactive;
-  "self:inactive": null;
-  trick: Trick;
-  "self:trick": [Card, Card];
-  "self:card_available": CardAvailable;
-  "self:card_unavailable": CardUnavailable;
-  trump_change: TrumpChange;
-  finished_distribution: null;
+  announcement: Announcement;
   can_play: null;
+  final_result: FinalResult;
+  finished_distribution: null;
+  inactive: Inactive;
   play_card: PlayCard;
-  "self:play_card": Card;
-  "self:card_playable": Card;
-  "self:card_not_playable": Card;
+  round_result: RoundResult;
+  trick: Trick;
+
+  // Player Events
+  "self:active": null;
+  "self:allow_announce": null;
   "self:allow_draw_card": null;
   "self:allow_play_card": null;
-  final_result: FinalResult;
-  round_result: RoundResult;
-  "self:result_match": number;
-  "self:won_match": number;
+  "self:announcement": CanAnnounce;
+  "self:card_available": CardAvailable;
+  "self:card_not_playable": Card;
+  "self:card_playable": Card;
+  "self:card_unavailable": CardUnavailable;
+  "self:cannot_announce": CannotAnnounce;
+  "self:can_announce": CanAnnounce;
+  "self:inactive": null;
   "self:lost_match": number;
-  "self:won_round": number;
   "self:lost_round": number;
+  "self:play_card": Card;
+  "self:result_match": number;
+  "self:trick": [Card, Card];
+  "self:trump_change": TrumpChange;
+  "self:trump_change_impossible": TrumpChangeImpossible;
+  "self:trump_change_possible": TrumpChangePossible;
+  "self:won_match": number;
+  "self:won_round": number;
 }
 
 // TODO: Handle failures to send
-export class SchnapsenClient extends GameServerWriteClient {
+export default class SchnapsenClient extends GameServerWriteClient {
   private _isActive: boolean = false;
   private _cards: Card[] = [];
   private _trump: Card | null = null;
@@ -120,42 +73,58 @@ export class SchnapsenClient extends GameServerWriteClient {
   private _playableCards: Card[] = [];
   private _tricks: [Card, Card][] = [];
   private _stack: Card[] = [];
+  private _announceable: CanAnnounce | null = null;
+  private _cardForTrumpChange: Card | null = null;
 
   constructor(userId: string, match: Match) {
     super(userId, match);
-    console.log(match);
 
     this.socket.on("active", this.handleEventActive.bind(this));
-    this.socket.on("inactive", this.handleEventInactive.bind(this));
-    this.socket.on("trick", this.handleEventTrick.bind(this));
-    this.socket.on("trump_change", this.handleEventTrumpChange.bind(this));
+    this.socket.on("allow_announce", this.handleEventAllowAnnounce.bind(this));
+    this.socket.on("allow_draw_card", this.handleEventAllowDrawCard.bind(this));
+    this.socket.on("allow_play_card", this.handleEventAllowPlayCard.bind(this));
+    this.socket.on("announcement", this.handleEventAnnouncement.bind(this));
+    this.socket.on("can_announce", this.handleEventCanAnnounce.bind(this));
     this.socket.on(
-      "finished_distribution",
-      this.handleEventFinishedDistribution.bind(this)
+      "cannot_announce",
+      this.handleEventCannotAnnounce.bind(this)
     );
-    this.socket.on("play_card", this.handleEventPlayCard.bind(this));
+    this.socket.on("card_available", this.handleEventCardAvailable.bind(this));
     this.socket.on(
       "card_not_playable",
       this.handleEventCardNotPlayable.bind(this)
     );
     this.socket.on("card_playable", this.handleEventCardPlayable.bind(this));
-    this.socket.on("final_result", this.handleEventFinalResult.bind(this));
-    this.socket.on("result", this.handleEventRoundResult.bind(this));
-
-    this.socket.on("card_available", this.handleEventCardAvailable.bind(this));
     this.socket.on(
       "card_unavailable",
       this.handleEventCardUnavailable.bind(this)
     );
-    this.socket.on("allow_draw_card", this.handleEventAllowDrawCard.bind(this));
-    this.socket.on("allow_play_card", this.handleEventAllowPlayCard.bind(this));
+    this.socket.on("final_result", this.handleEventFinalResult.bind(this));
+    this.socket.on(
+      "finished_distribution",
+      this.handleEventFinishedDistribution.bind(this)
+    );
+    this.socket.on("inactive", this.handleEventInactive.bind(this));
+    this.socket.on("play_card", this.handleEventPlayCard.bind(this));
+    this.socket.on("result", this.handleEventRoundResult.bind(this));
+    this.socket.on("trick", this.handleEventTrick.bind(this));
+    this.socket.on("trump_change", this.handleEventTrumpChange.bind(this));
+    this.socket.on(
+      "trump_change_impossible",
+      this.handleEventTrumpChangeImpossible.bind(this)
+    );
+    this.socket.on(
+      "trump_change_possible",
+      this.handleEventTrumpChangePossible.bind(this)
+    );
 
     this.on("self:active", this.onSelfActive.bind(this));
     this.on("self:inactive", this.onSelfInactive.bind(this));
 
-    this.on("trump_change", (event: TrumpChange) => {
+    this.on("self:trump_change", (event: TrumpChange) => {
       this._trump = event.data;
     });
+
   }
 
   public get cardsAvailable(): Card[] {
@@ -187,6 +156,14 @@ export class SchnapsenClient extends GameServerWriteClient {
     return this._stack;
   }
 
+  public get announceable(): CanAnnounce | null {
+    return this._announceable;
+  }
+
+  public get cardForTrumpChange(): Card | null {
+    return this._cardForTrumpChange;
+  }
+
   public on<K extends keyof SchnapsenClientEvents>(
     event: K,
     listener: (payload: SchnapsenClientEvents[K]) => void
@@ -202,7 +179,7 @@ export class SchnapsenClient extends GameServerWriteClient {
   }
 
   public disconnect() {
-    this.socket.disconnect()
+    this.socket.disconnect();
   }
 
   playCard(card: Card) {
@@ -290,7 +267,7 @@ export class SchnapsenClient extends GameServerWriteClient {
   }
 
   protected handleEventTrumpChange(event: TrumpChange) {
-    this.emit("trump_change", event);
+    this.emit("self:trump_change", event);
   }
 
   protected handleEventFinishedDistribution() {
@@ -334,6 +311,38 @@ export class SchnapsenClient extends GameServerWriteClient {
     if (event.data.winner == this.userId)
       this.emit("self:won_round", event.data.points);
     else this.emit("self:lost_round", event.data.points);
+  }
+
+  protected handleEventCanAnnounce(event: CanAnnounce) {
+    this._announceable = event;
+    this.emit("self:can_announce", event);
+  }
+
+  protected handleEventAnnouncement(event: Announcement) {
+    if (event.data.user_id == this.userId) {
+      this._announceable = null;
+      this.emit("self:announcement", event);
+    }
+    this.emit("announcement", event);
+  }
+
+  protected handleEventTrumpChangePossible(event: TrumpChangePossible) {
+    this._cardForTrumpChange = event.data;
+    this.emit("self:trump_change_possible", event);
+  }
+
+  protected handleEventTrumpChangeImpossible(event: TrumpChangeImpossible) {
+    this._cardForTrumpChange = null;
+    this.emit("self:trump_change_impossible", event);
+  }
+
+  protected handleEventAllowAnnounce() {
+    this.emit("self:allow_announce");
+  }
+
+  protected handleEventCannotAnnounce(event: CannotAnnounce) {
+    this._announceable = null;
+    this.emit("self:cannot_announce", event);
   }
 
   private onSelfActive() {
