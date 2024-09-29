@@ -10,7 +10,7 @@ import {
 import { SchnapsenClient, SchnapsenClientBuilder } from "../src/index";
 
 let instance = new MatchMaker(
-  "http://127.0.0.1:4000",
+  "https://matchmaking.jjhost.at",
   "saus" + Math.random(),
   new SchnapsenClientBuilder()
 );
