@@ -1,4 +1,3 @@
-import { sleep } from "bun";
 import {
   GameServerWriteClient,
   MatchMaker,
@@ -24,8 +23,8 @@ import type {
   TrumpChange,
   TrumpChangeImpossible,
   TrumpChangePossible,
-} from "./types";
-export * as types from "./types";
+} from "./types.js";
+export * as types from "./types.js";
 
 interface SchnapsenClientEvents {
   // General Events

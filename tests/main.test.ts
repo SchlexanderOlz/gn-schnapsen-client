@@ -10,7 +10,7 @@ import {
 import SchnapsenClient,  { SchnapsenClientBuilder } from "../src/index";
 
 let instance = new MatchMaker(
-  "http://127.0.0.1:4000",
+  "https://matchmaking.jjhost.at",
   "saus" + Math.random(),
   new SchnapsenClientBuilder()
 );
@@ -48,7 +48,7 @@ instance.on("match", (client: SchnapsenClient) => {
 
   client.on("self:allow_draw_card", async () => {
     console.log("Drawing card");
-    await sleep(100);
+    await sleep(1000);
     client.drawCard();
   });
 
