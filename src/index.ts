@@ -18,11 +18,14 @@ import type {
   FinalResult,
   Inactive,
   PlayCard,
+  AddCard,
   RoundResult,
   Trick,
   TrumpChange,
   TrumpChangeImpossible,
   TrumpChangePossible,
+  RemoveCard,
+  DeckCardCountChange,
 } from "./types.js";
 export * as types from "./types.js";
 
@@ -37,6 +40,9 @@ interface SchnapsenClientEvents {
   play_card: PlayCard;
   round_result: RoundResult;
   trick: Trick;
+  enemy_receive_card: AddCard;
+  enemy_play_card: RemoveCard;
+  deck_card_count_change: number; // Number of cards in the deck
 
   // Player Events
   "self:active": null;
@@ -71,9 +77,12 @@ export default class SchnapsenClient extends GameServerWriteClient {
   private _ready: boolean = false;
   private _playableCards: Card[] = [];
   private _tricks: [Card, Card][] = [];
+  private _enemyTricks: Map<string, [Card, Card][]> = new Map();
+  private _cardCount: Map<string, number> = new Map();
   private _stack: Card[] = [];
   private _announceable: CanAnnounce | null = null;
   private _cardForTrumpChange: Card | null = null;
+  private _deckCardCount: number = 0;
 
   constructor(userId: string, match: Match) {
     super(userId, match);
@@ -88,6 +97,7 @@ export default class SchnapsenClient extends GameServerWriteClient {
       "cannot_announce",
       this.handleEventCannotAnnounce.bind(this)
     );
+    this.socket.on("receive_card", this.handleEventReceiveCard.bind(this));
     this.socket.on("card_available", this.handleEventCardAvailable.bind(this));
     this.socket.on(
       "card_not_playable",
@@ -115,6 +125,11 @@ export default class SchnapsenClient extends GameServerWriteClient {
     this.socket.on(
       "trump_change_possible",
       this.handleEventTrumpChangePossible.bind(this)
+    );
+
+    this.socket.on(
+      "deck_card_count",
+      this.handleEventDeckCardCountChange.bind(this)
     );
 
     this.on("self:active", this.onSelfActive.bind(this));
@@ -161,6 +176,24 @@ export default class SchnapsenClient extends GameServerWriteClient {
 
   public get cardForTrumpChange(): Card | null {
     return this._cardForTrumpChange;
+  }
+
+  public get enemyTricks(): Map<string, [Card, Card][]> {
+    return this._enemyTricks;
+  }
+
+  public get deckCardCount(): number {
+    return this._deckCardCount;
+  }
+
+  // NOTE: This implementation does only work for duo-schnapsen. It will not work for other modes.
+  public get enemyCardCount(): number {
+    for (const key of this._cardCount.keys()) {
+      if (key != this.userId) {
+        return this._cardCount.get(key) ?? 0;
+      }
+    }
+    return 0;
   }
 
   public on<K extends keyof SchnapsenClientEvents>(
@@ -244,6 +277,13 @@ export default class SchnapsenClient extends GameServerWriteClient {
     if (event.data.user_id === this.userId) {
       this._tricks.push(event.data.cards);
       this.emit("self:trick", event.data.cards);
+    } else {
+      let tricks = this._enemyTricks.get(event.data.user_id)
+      if (tricks == null) {
+        this._enemyTricks.set(event.data.user_id, [event.data.cards]);
+      } else {
+        tricks.push(event.data.cards);
+      }
     }
     this.emit("trick", event);
   }
@@ -265,6 +305,11 @@ export default class SchnapsenClient extends GameServerWriteClient {
     this.emit("self:card_unavailable", event);
   }
 
+  protected handleEventDeckCardCountChange(event: DeckCardCountChange) {
+    this._deckCardCount = event.data;
+    this.emit("deck_card_count_change", event.data)
+  }
+
   protected handleEventTrumpChange(event: TrumpChange) {
     this.emit("self:trump_change", event);
   }
@@ -278,8 +323,13 @@ export default class SchnapsenClient extends GameServerWriteClient {
 
   protected handleEventPlayCard(event: PlayCard) {
     this._stack.push(event.data.card);
-    if (event.data.user_id == this.userId)
+
+    this._cardCount.set(event.data.user_id, (this._cardCount.get(event.data.user_id) ?? 0) - 1);
+    if (event.data.user_id == this.userId) {
       this.emit("self:play_card", event.data.card);
+    } else {
+      this.emit("enemy_play_card", event as RemoveCard);
+    }
     this.emit("play_card", event);
   }
 
@@ -290,6 +340,11 @@ export default class SchnapsenClient extends GameServerWriteClient {
         !(card.suit == event.data.suit && card.value == event.data.value)
     );
     this.emit("self:card_not_playable", event.data);
+  }
+
+  protected handleEventReceiveCard(event: AddCard) {
+    this._cardCount.set(event.data.user_id, (this._cardCount.get(event.data.user_id) ?? 0) + 1);
+    this.emit("enemy_receive_card", event);
   }
 
   protected handleEventCardPlayable(event: CardPlayable) {

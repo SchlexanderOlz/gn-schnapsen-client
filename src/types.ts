@@ -46,12 +46,19 @@ interface CardEvent extends Event {
   data: Card;
 }
 
+export interface AddCard extends UserIdEvent {}
+export interface RemoveCard extends UserIdEvent {}
+
 export interface CardAvailable extends CardEvent {}
 
 export interface CardUnavailable extends CardEvent {}
 
 export interface CardPlayable extends CardEvent {}
 export interface CardNotPlayable extends CardEvent {}
+
+export interface DeckCardCountChange extends Event {
+  data: number;
+}
 
 export interface PlayCard extends UserIdEvent {
   data: {

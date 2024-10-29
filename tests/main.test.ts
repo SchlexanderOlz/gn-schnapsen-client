@@ -52,6 +52,14 @@ instance.on("match", (client: SchnapsenClient) => {
     client.drawCard();
   });
 
+  client.on("enemy_play_card", (event) => {
+    console.log("Enemy Card Count after play: " + client.enemyCardCount);
+  })
+
+  client.on("enemy_receive_card", (event) => {
+    console.log("Enemy Card Count after receive: " + client.enemyCardCount);
+  })
+
   client.on("self:allow_play_card", onActive);
 
   client.on("play_card", (event) => {
@@ -80,5 +88,9 @@ instance.on("match", (client: SchnapsenClient) => {
     client.disconnect();
     console.log("Round Result");
     console.log(result);
+  });
+
+  client.on("deck_card_count_change", (event) => {
+    console.log("Number of card in deck: " + event);
   });
 });
