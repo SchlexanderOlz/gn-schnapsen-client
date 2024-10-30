@@ -38,6 +38,14 @@ export interface Trick extends UserIdEvent {
   };
 }
 
+
+export interface Score extends UserIdEvent {
+  data: {
+    user_id: string;
+    points: number;
+}
+}
+
 export interface TrumpChange extends Event {
   data: Card;
 }
@@ -90,8 +98,11 @@ export interface CanAnnounce extends Event {
 }
 
 export interface CannotAnnounce extends CanAnnounce {}
-
-export interface Announcement extends CanAnnounce {
+export interface Announcement {
+  cards: [Card, Card];
+  announce_type: "Forty" | "Twenty";
+}
+export interface AnnouncementEvent extends CanAnnounce {
   data: {
     user_id: string;
     cards: [Card, Card];

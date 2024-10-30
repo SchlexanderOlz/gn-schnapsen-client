@@ -7,7 +7,7 @@ import {
 } from "gn-matchmaker-client";
 import type {
   Active,
-  Announcement,
+  AnnouncementEvent,
   CanAnnounce,
   CannotAnnounce,
   Card,
@@ -26,19 +26,22 @@ import type {
   TrumpChangePossible,
   RemoveCard,
   DeckCardCountChange,
+  Score,
+  Announcement,
 } from "./types.js";
 export * as types from "./types.js";
 
 interface SchnapsenClientEvents {
   // General Events
   active: Active;
-  announcement: Announcement;
+  announcement: AnnouncementEvent;
   can_play: null;
   final_result: FinalResult;
   finished_distribution: null;
   inactive: Inactive;
   play_card: PlayCard;
   round_result: RoundResult;
+  score: Score;
   trick: Trick;
   enemy_receive_card: AddCard;
   enemy_play_card: RemoveCard;
@@ -61,6 +64,7 @@ interface SchnapsenClientEvents {
   "self:lost_round": number;
   "self:play_card": Card;
   "self:result_match": number;
+  "self:score": number;
   "self:trick": [Card, Card];
   "self:trump_change": TrumpChange;
   "self:trump_change_impossible": TrumpChangeImpossible;
@@ -76,13 +80,15 @@ export default class SchnapsenClient extends GameServerWriteClient {
   private _trump: Card | null = null;
   private _ready: boolean = false;
   private _playableCards: Card[] = [];
-  private _tricks: [Card, Card][] = [];
-  private _enemyTricks: Map<string, [Card, Card][]> = new Map();
+  private _tricks: Map<string, [Card, Card][]> = new Map();
   private _cardCount: Map<string, number> = new Map();
   private _stack: Card[] = [];
   private _announceable: CanAnnounce | null = null;
   private _cardForTrumpChange: Card | null = null;
-  private _deckCardCount: number = 0;
+  private _deckCardCount: number = 9;
+  private _scores: Map<string, number> = new Map();
+  private _announcements: Map<string, Announcement> = new Map();
+
 
   constructor(userId: string, match: Match) {
     super(userId, match);
@@ -132,6 +138,10 @@ export default class SchnapsenClient extends GameServerWriteClient {
       this.handleEventDeckCardCountChange.bind(this)
     );
 
+    this.socket.on("score",
+      this.handleEventScore.bind(this)
+    );
+
     this.on("self:active", this.onSelfActive.bind(this));
     this.on("self:inactive", this.onSelfInactive.bind(this));
 
@@ -163,7 +173,7 @@ export default class SchnapsenClient extends GameServerWriteClient {
   }
 
   public get tricks(): [Card, Card][] {
-    return this._tricks;
+    return this._tricks.get(this.userId) ?? [];
   }
 
   public get stack(): Card[] {
@@ -178,12 +188,73 @@ export default class SchnapsenClient extends GameServerWriteClient {
     return this._cardForTrumpChange;
   }
 
-  public get enemyTricks(): Map<string, [Card, Card][]> {
-    return this._enemyTricks;
+  public get enemyTricks(): [Card, Card][] {
+    for (const key of this._tricks.keys()) {
+      if (key !== this.userId) {
+        return this._tricks.get(key) ?? [];
+      }
+    }
+    return []
+  }
+
+  public get trickCount(): number {
+    return this._tricks.get(this.userId)?.length ?? 0;
+  }
+
+  public get totalTrickCount(): number {
+    return this.trickCount + this.enemyTrickCount;
+  }
+
+  public get score(): number {
+    return this.getScore(this.userId);
+  }
+
+  public get enemyScore(): number {
+     for (const key of this._scores.keys()) {
+      if (key !== this.userId) {
+        return this._scores.get(key) ?? 0;
+      }
+    }
+    return 0;   
+  }
+
+  // NOTE: Alle enemy... function do only work for duo-schnapsen. Fix this for other modes!
+  public get enemyFirstTrick(): [Card, Card] | undefined {
+    for (const key of this._tricks.keys()) {
+      if (key !== this.userId) {
+        return this._tricks.get(key)?.at(0);
+      }
+    }
+    return undefined;
+  }
+
+  public get enemyTrickCount(): number {
+    for (const key of this._tricks.keys()) {
+        if (key !== this.userId) {
+          return this._tricks.get(key)?.length ?? 0;
+        }
+    }
+    return 0;
+  }
+
+  public get firstTrick(): [Card, Card] | undefined {
+    return this._tricks.get(this.userId)?.at(0);
   }
 
   public get deckCardCount(): number {
     return this._deckCardCount;
+  }
+
+  public get announcement(): Announcement | undefined {
+    return this._announcements.get(this.userId);
+  }
+
+  public get enemyAnnouncement(): Announcement | undefined {
+    for (const key of this._announcements.keys()) {
+      if (key !== this.userId) {
+        return this._announcements.get(key);
+      }
+    }
   }
 
   // NOTE: This implementation does only work for duo-schnapsen. It will not work for other modes.
@@ -212,6 +283,10 @@ export default class SchnapsenClient extends GameServerWriteClient {
 
   public disconnect() {
     this.socket.disconnect();
+  }
+
+  getScore(userId: string): number {
+    return this._scores.get(userId) ?? 0;
   }
 
   playCard(card: Card) {
@@ -261,28 +336,31 @@ export default class SchnapsenClient extends GameServerWriteClient {
   }
 
   protected handleEventActive(event: Active) {
-    console.log(event);
-    if (event.data.user_id === this.userId) this.emit("self:active");
+    if (event.data.user_id === this.userId) {
+      this.emit("self:active");
+    } else {
+
+    }
     this.emit("active", event);
   }
 
   protected handleEventInactive(event: Inactive) {
-    console.log(event);
-    if (event.data.user_id === this.userId) this.emit("self:inactive");
+    if (event.data.user_id === this.userId) {
+      this.emit("self:inactive");
+    }
     this.emit("inactive", event);
   }
 
   protected handleEventTrick(event: Trick) {
     this._stack = [];
     if (event.data.user_id === this.userId) {
-      this._tricks.push(event.data.cards);
       this.emit("self:trick", event.data.cards);
     } else {
-      let tricks = this._enemyTricks.get(event.data.user_id)
+      const tricks = this._tricks.get(event.data.user_id)
       if (tricks == null) {
-        this._enemyTricks.set(event.data.user_id, [event.data.cards]);
+        this._tricks.set(event.data.user_id, [event.data.cards]);
       } else {
-        tricks.push(event.data.cards);
+        this._tricks.set(event.data.user_id, [event.data.cards, ...tricks]);
       }
     }
     this.emit("trick", event);
@@ -367,12 +445,21 @@ export default class SchnapsenClient extends GameServerWriteClient {
     else this.emit("self:lost_round", event.data.points);
   }
 
+  protected handleEventScore(event: Score) {
+    this._scores.set(event.data.user_id, event.data.points);
+    if (event.data.user_id == this.userId) {
+      this.emit("self:score", event.data.points);
+    }
+    this.emit("score", event);
+  }
+
   protected handleEventCanAnnounce(event: CanAnnounce) {
     this._announceable = event;
     this.emit("self:can_announce", event);
   }
 
-  protected handleEventAnnouncement(event: Announcement) {
+  protected handleEventAnnouncement(event: AnnouncementEvent) {
+    this._announcements.set(event.data.user_id, event.data);
     if (event.data.user_id == this.userId) {
       this._announceable = null;
       this.emit("self:announcement", event);

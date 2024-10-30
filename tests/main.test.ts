@@ -91,6 +91,17 @@ instance.on("match", (client: SchnapsenClient) => {
   });
 
   client.on("deck_card_count_change", (event) => {
-    console.log("Number of card in deck: " + event);
+    console.log("Number of card in deck: " + client.deckCardCount);
   });
+
+  client.on("trick", (event) => {
+    console.log("Enemy Trick Count: " + client.enemyTrickCount);
+    console.log("Self Trick Count: " + client.tricks.length);
+
+    console.log("First enemy trick" + client.enemyFirstTrick);
+  });
+
+  client.on("self:score", (event) => {
+    console.log("Score: " + event);
+  })
 });
