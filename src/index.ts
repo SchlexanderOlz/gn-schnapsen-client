@@ -42,9 +42,10 @@ interface SchnapsenClientEvents {
   play_card: PlayCard;
   round_result: RoundResult;
   score: Score;
+  trump_change: { user_id: string; card: Card | null };
   trick: Trick;
   enemy_receive_card: AddCard;
-  enemy_play_card: RemoveCard;
+  enemy_play_card: PlayCard;
   deck_card_count_change: number; // Number of cards in the deck
 
   // Player Events
@@ -62,7 +63,7 @@ interface SchnapsenClientEvents {
   "self:inactive": null;
   "self:lost_match": number;
   "self:lost_round": number;
-  "self:play_card": Card;
+  "self:play_card": { card: Card; announcement?: Announcement };
   "self:result_match": number;
   "self:score": number;
   "self:trick": [Card, Card];
@@ -75,6 +76,7 @@ interface SchnapsenClientEvents {
 
 // TODO: Handle failures to send
 export default class SchnapsenClient extends GameServerWriteClient {
+  private _announcements: Map<string, Announcement[]> = new Map();
   private _isActive: boolean = false;
   private _cards: Card[] = [];
   private _trump: Card | null = null;
@@ -83,12 +85,15 @@ export default class SchnapsenClient extends GameServerWriteClient {
   private _tricks: Map<string, [Card, Card][]> = new Map();
   private _cardCount: Map<string, number> = new Map();
   private _stack: Card[] = [];
-  private _announceable: CanAnnounce | null = null;
+  private _announceable: CanAnnounce[] = [];
+  private _announcing: Map<string, Announcement> = new Map();
+  private _active: string = "";
   private _cardForTrumpChange: Card | null = null;
   private _deckCardCount: number = 9;
   private _scores: Map<string, number> = new Map();
-  private _announcements: Map<string, Announcement> = new Map();
-
+  private _allowAnnounce: boolean = false;
+  private _allowPlayCard: boolean = false;
+  private _allowDrawCard: boolean = false;
 
   constructor(userId: string, match: Match) {
     super(userId, match);
@@ -97,7 +102,7 @@ export default class SchnapsenClient extends GameServerWriteClient {
     this.socket.on("allow_announce", this.handleEventAllowAnnounce.bind(this));
     this.socket.on("allow_draw_card", this.handleEventAllowDrawCard.bind(this));
     this.socket.on("allow_play_card", this.handleEventAllowPlayCard.bind(this));
-    this.socket.on("announcement", this.handleEventAnnouncement.bind(this));
+    this.socket.on("announce", this.handleEventAnnouncement.bind(this));
     this.socket.on("can_announce", this.handleEventCanAnnounce.bind(this));
     this.socket.on(
       "cannot_announce",
@@ -138,9 +143,11 @@ export default class SchnapsenClient extends GameServerWriteClient {
       this.handleEventDeckCardCountChange.bind(this)
     );
 
-    this.socket.on("score",
-      this.handleEventScore.bind(this)
-    );
+    this.socket.on("score", this.handleEventScore.bind(this));
+
+    this.socket.onAny((event, ...args) => {
+      console.log(event, args);
+    });
 
     this.on("self:active", this.onSelfActive.bind(this));
     this.on("self:inactive", this.onSelfInactive.bind(this));
@@ -148,7 +155,6 @@ export default class SchnapsenClient extends GameServerWriteClient {
     this.on("self:trump_change", (event: TrumpChange) => {
       this._trump = event.data;
     });
-
   }
 
   public get cardsAvailable(): Card[] {
@@ -159,8 +165,7 @@ export default class SchnapsenClient extends GameServerWriteClient {
     return this._isActive;
   }
 
-  public get trump(): Card {
-    if (this._trump == null) throw new Error("Trump is not set");
+  public get trump(): Card | null {
     return this._trump;
   }
 
@@ -180,7 +185,7 @@ export default class SchnapsenClient extends GameServerWriteClient {
     return this._stack;
   }
 
-  public get announceable(): CanAnnounce | null {
+  public get announceable(): CanAnnounce[] | null {
     return this._announceable;
   }
 
@@ -194,7 +199,7 @@ export default class SchnapsenClient extends GameServerWriteClient {
         return this._tricks.get(key) ?? [];
       }
     }
-    return []
+    return [];
   }
 
   public get trickCount(): number {
@@ -210,12 +215,12 @@ export default class SchnapsenClient extends GameServerWriteClient {
   }
 
   public get enemyScore(): number {
-     for (const key of this._scores.keys()) {
+    for (const key of this._scores.keys()) {
       if (key !== this.userId) {
         return this._scores.get(key) ?? 0;
       }
     }
-    return 0;   
+    return 0;
   }
 
   // NOTE: Alle enemy... function do only work for duo-schnapsen. Fix this for other modes!
@@ -230,9 +235,9 @@ export default class SchnapsenClient extends GameServerWriteClient {
 
   public get enemyTrickCount(): number {
     for (const key of this._tricks.keys()) {
-        if (key !== this.userId) {
-          return this._tricks.get(key)?.length ?? 0;
-        }
+      if (key !== this.userId) {
+        return this._tricks.get(key)?.length ?? 0;
+      }
     }
     return 0;
   }
@@ -245,11 +250,18 @@ export default class SchnapsenClient extends GameServerWriteClient {
     return this._deckCardCount;
   }
 
-  public get announcement(): Announcement | undefined {
+  /**
+   * @deprecated
+   */
+  public get announcement(): Announcement[] | undefined {
     return this._announcements.get(this.userId);
   }
 
-  public get enemyAnnouncement(): Announcement | undefined {
+  public get announcements(): Announcement[] | undefined {
+    return this._announcements.get(this.userId);
+  }
+
+  public get enemyAnnouncement(): Announcement[] | undefined {
     for (const key of this._announcements.keys()) {
       if (key !== this.userId) {
         return this._announcements.get(key);
@@ -265,6 +277,18 @@ export default class SchnapsenClient extends GameServerWriteClient {
       }
     }
     return 0;
+  }
+
+  public get allowAnnounce(): boolean {
+    return this._allowAnnounce;
+  }
+
+  public get allowPlayCard(): boolean {
+    return this._allowPlayCard;
+  }
+
+  public get allowDrawCard(): boolean {
+    return this._allowDrawCard;
   }
 
   public on<K extends keyof SchnapsenClientEvents>(
@@ -304,9 +328,9 @@ export default class SchnapsenClient extends GameServerWriteClient {
     this.socket.emit("close_talon");
   }
 
-  announce20() {
+  announce20(cards: Card[]) {
     if (!this._isActive) return;
-    this.socket.emit("announce_20");
+    this.socket.emit("announce_20", cards);
   }
 
   announce40() {
@@ -328,24 +352,32 @@ export default class SchnapsenClient extends GameServerWriteClient {
   }
 
   protected handleEventAllowDrawCard() {
+    this._allowDrawCard = true;
     this.emit("self:allow_draw_card");
   }
 
   protected handleEventAllowPlayCard() {
+    this._allowPlayCard = true;
     this.emit("self:allow_play_card");
   }
 
   protected handleEventActive(event: Active) {
+    this._active = event.data.user_id;
     if (event.data.user_id === this.userId) {
       this.emit("self:active");
-    } else {
-
     }
     this.emit("active", event);
   }
 
+  private resetGuards() {
+    this._allowDrawCard = false;
+    this._allowPlayCard = false;
+    this._allowAnnounce = false;
+  }
+
   protected handleEventInactive(event: Inactive) {
     if (event.data.user_id === this.userId) {
+      this.resetGuards();
       this.emit("self:inactive");
     }
     this.emit("inactive", event);
@@ -353,16 +385,18 @@ export default class SchnapsenClient extends GameServerWriteClient {
 
   protected handleEventTrick(event: Trick) {
     this._stack = [];
+
+    const tricks = this._tricks.get(event.data.user_id);
+    if (tricks == null) {
+      this._tricks.set(event.data.user_id, [event.data.cards]);
+    } else {
+      this._tricks.set(event.data.user_id, [...tricks, event.data.cards]);
+    }
+
     if (event.data.user_id === this.userId) {
       this.emit("self:trick", event.data.cards);
-    } else {
-      const tricks = this._tricks.get(event.data.user_id)
-      if (tricks == null) {
-        this._tricks.set(event.data.user_id, [event.data.cards]);
-      } else {
-        this._tricks.set(event.data.user_id, [event.data.cards, ...tricks]);
-      }
     }
+
     this.emit("trick", event);
   }
 
@@ -385,11 +419,19 @@ export default class SchnapsenClient extends GameServerWriteClient {
 
   protected handleEventDeckCardCountChange(event: DeckCardCountChange) {
     this._deckCardCount = event.data;
-    this.emit("deck_card_count_change", event.data)
+    this.emit("deck_card_count_change", event.data);
   }
 
   protected handleEventTrumpChange(event: TrumpChange) {
-    this.emit("self:trump_change", event);
+    let user_id = this._active;
+    if (this._trump == null || event.data == null) {
+      user_id = "server";
+    }
+    this.emit("trump_change", { user_id, card: event.data });
+
+    if (this._active === this.userId) {
+      this.emit("self:trump_change", event);
+    }
   }
 
   protected handleEventFinishedDistribution() {
@@ -402,11 +444,20 @@ export default class SchnapsenClient extends GameServerWriteClient {
   protected handleEventPlayCard(event: PlayCard) {
     this._stack.push(event.data.card);
 
-    this._cardCount.set(event.data.user_id, (this._cardCount.get(event.data.user_id) ?? 0) - 1);
+    this._cardCount.set(
+      event.data.user_id,
+      (this._cardCount.get(event.data.user_id) ?? 0) - 1
+    );
+
+    let announcement = this._announcing.get(event.data.user_id);
+    this._announcing.delete(event.data.user_id);
+
+    event.data.announcement = announcement;
+
     if (event.data.user_id == this.userId) {
-      this.emit("self:play_card", event.data.card);
+      this.emit("self:play_card", event.data);
     } else {
-      this.emit("enemy_play_card", event as RemoveCard);
+      this.emit("enemy_play_card", event);
     }
     this.emit("play_card", event);
   }
@@ -421,7 +472,10 @@ export default class SchnapsenClient extends GameServerWriteClient {
   }
 
   protected handleEventReceiveCard(event: AddCard) {
-    this._cardCount.set(event.data.user_id, (this._cardCount.get(event.data.user_id) ?? 0) + 1);
+    this._cardCount.set(
+      event.data.user_id,
+      (this._cardCount.get(event.data.user_id) ?? 0) + 1
+    );
     this.emit("enemy_receive_card", event);
   }
 
@@ -447,23 +501,31 @@ export default class SchnapsenClient extends GameServerWriteClient {
 
   protected handleEventScore(event: Score) {
     this._scores.set(event.data.user_id, event.data.points);
-    if (event.data.user_id == this.userId) {
+    if (event.data.user_id === this.userId) {
       this.emit("self:score", event.data.points);
     }
     this.emit("score", event);
   }
 
   protected handleEventCanAnnounce(event: CanAnnounce) {
-    this._announceable = event;
+    this._announceable.push(event);
     this.emit("self:can_announce", event);
   }
 
   protected handleEventAnnouncement(event: AnnouncementEvent) {
-    this._announcements.set(event.data.user_id, event.data);
-    if (event.data.user_id == this.userId) {
-      this._announceable = null;
+    this._announcing.set(event.data.user_id, event.data);
+
+    console.log("Announcing " + this._announcing);
+
+    this._announcements.set(event.data.user_id, [
+      event.data,
+      ...(this._announcements.get(event.data.user_id) ?? []),
+    ]);
+
+    if (event.data.user_id === this.userId) {
       this.emit("self:announcement", event);
     }
+
     this.emit("announcement", event);
   }
 
@@ -478,11 +540,16 @@ export default class SchnapsenClient extends GameServerWriteClient {
   }
 
   protected handleEventAllowAnnounce() {
+    this._allowAnnounce = true;
     this.emit("self:allow_announce");
   }
 
   protected handleEventCannotAnnounce(event: CannotAnnounce) {
-    this._announceable = null;
+    this._announceable.filter(
+      (announce) =>
+        announce.data.announce_type !== event.data.announce_type ||
+        announce.data.cards[0].suit !== event.data.cards[0].suit
+    );
     this.emit("self:cannot_announce", event);
   }
 

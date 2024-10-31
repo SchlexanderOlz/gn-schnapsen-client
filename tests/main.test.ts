@@ -31,14 +31,13 @@ instance.on("_servers", (servers) => {
 instance.on("match", (client: SchnapsenClient) => {
   console.log("Match found");
 
+  let stop = false;
+
   let onActive = async () => {
-    console.log("Playing Card");
 
-    await sleep(100);
+    await sleep(800);
+    if (stop) return;
 
-    console.log("Availabel: " + JSON.stringify(client.cardsAvailable));
-    console.log("Trump: " + JSON.stringify(client.trump));
-    console.log("Playable: " + JSON.stringify(client.cardsPlayable));
     client.playCard(
       client.cardsPlayable[
         Math.floor(Math.random() * client.cardsPlayable.length)
@@ -47,41 +46,55 @@ instance.on("match", (client: SchnapsenClient) => {
   };
 
   client.on("self:allow_draw_card", async () => {
-    console.log("Drawing card");
     await sleep(1000);
     client.drawCard();
   });
 
+
   client.on("enemy_play_card", (event) => {
-    console.log("Enemy Card Count after play: " + client.enemyCardCount);
   })
 
   client.on("enemy_receive_card", (event) => {
-    console.log("Enemy Card Count after receive: " + client.enemyCardCount);
   })
 
   client.on("self:allow_play_card", onActive);
 
   client.on("play_card", (event) => {
     console.log(
-      `Player ${event.data.user_id} played ${event.data.card.suit} ${event.data.card.value}`
+      `Player ${event.data.user_id} played ${event.data.card.suit} ${event.data.card.value} with ${event.data.announcement} `
     );
   });
 
   client.on("self:trick", (trick) => {
-    console.log("Trick: " + trick);
   });
 
   client.on("self:card_available", (event) => {
-    console.log(event);
   });
 
+  client.on("self:can_announce", async (event) => {
+    while (!client.allowAnnounce) {
+        await sleep(100);
+    }
+    stop = true;
+    client.announce20(event.data.cards);
+    await sleep(1000);
+    client.playCard(client.cardsPlayable[0]);
+    stop = false;
+  })
+
+  client.on("self:allow_play_card", () => {
+  });
+
+  client.on("self:allow_announce", (event) => {
+  });
+
+  client.on("self:cannot_announce", (event) => {
+  })
+
   client.on("self:card_unavailable", (event) => {
-    console.log(event);
   });
 
   client.on("final_result", (event) => {
-    console.log(event);
   });
 
   client.on("round_result", (result) => {
@@ -102,6 +115,7 @@ instance.on("match", (client: SchnapsenClient) => {
   });
 
   client.on("self:score", (event) => {
-    console.log("Score: " + event);
+    console.log("SCORE SCORE SCORE");
+    console.log("Score: " + client.score);
   })
 });

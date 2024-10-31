@@ -47,7 +47,7 @@ export interface Score extends UserIdEvent {
 }
 
 export interface TrumpChange extends Event {
-  data: Card;
+  data: Card | null;
 }
 
 interface CardEvent extends Event {
@@ -72,6 +72,7 @@ export interface PlayCard extends UserIdEvent {
   data: {
     user_id: string;
     card: Card;
+    announcement?: Announcement;
   };
 }
 
