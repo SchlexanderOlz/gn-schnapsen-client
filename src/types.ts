@@ -46,6 +46,8 @@ export interface Score extends UserIdEvent {
 }
 }
 
+export interface CloseTalonEvent extends UserIdEvent {}
+
 export interface TrumpChange extends Event {
   data: Card | null;
 }

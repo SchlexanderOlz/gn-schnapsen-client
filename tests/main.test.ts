@@ -32,11 +32,15 @@ instance.on("match", (client: SchnapsenClient) => {
   console.log("Match found");
 
   let stop = false;
+  let wait = false;
 
   let onActive = async () => {
 
     await sleep(800);
     if (stop) return;
+    while (wait) {
+      await sleep(100);
+    }
 
     client.playCard(
       client.cardsPlayable[
@@ -49,6 +53,14 @@ instance.on("match", (client: SchnapsenClient) => {
     await sleep(1000);
     client.drawCard();
   });
+
+  client.on("self:allow_close_talon", async () => {
+    console.log("Close Talon");
+    wait = true;
+    client.closeTalon();
+    await sleep(200);
+    wait = false;
+  })
 
 
   client.on("enemy_play_card", (event) => {
@@ -77,9 +89,13 @@ instance.on("match", (client: SchnapsenClient) => {
     }
     stop = true;
     client.announce20(event.data.cards);
-    await sleep(1000);
     client.playCard(client.cardsPlayable[0]);
+    await sleep(1000)
     stop = false;
+  })
+
+  client.on("close_talon", (event) => {
+    console.log("Close Talon by " + event.data.user_id);
   })
 
   client.on("self:allow_play_card", () => {

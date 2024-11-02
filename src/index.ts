@@ -28,6 +28,7 @@ import type {
   DeckCardCountChange,
   Score,
   Announcement,
+  CloseTalonEvent,
 } from "./types.js";
 export * as types from "./types.js";
 
@@ -36,6 +37,7 @@ interface SchnapsenClientEvents {
   active: Active;
   announcement: AnnouncementEvent;
   can_play: null;
+  close_talon: CloseTalonEvent;
   final_result: FinalResult;
   finished_distribution: null;
   inactive: Inactive;
@@ -53,6 +55,7 @@ interface SchnapsenClientEvents {
   "self:allow_announce": null;
   "self:allow_draw_card": null;
   "self:allow_play_card": null;
+  "self:allow_close_talon": null;
   "self:announcement": CanAnnounce;
   "self:card_available": CardAvailable;
   "self:card_not_playable": Card;
@@ -60,6 +63,7 @@ interface SchnapsenClientEvents {
   "self:card_unavailable": CardUnavailable;
   "self:cannot_announce": CannotAnnounce;
   "self:can_announce": CanAnnounce;
+  "self:close_talon": null;
   "self:inactive": null;
   "self:lost_match": number;
   "self:lost_round": number;
@@ -94,6 +98,8 @@ export default class SchnapsenClient extends GameServerWriteClient {
   private _allowAnnounce: boolean = false;
   private _allowPlayCard: boolean = false;
   private _allowDrawCard: boolean = false;
+  private _allowCloseTalon: boolean = false;
+  private _talonClosedBy: string | null = null;
 
   constructor(userId: string, match: Match) {
     super(userId, match);
@@ -102,6 +108,7 @@ export default class SchnapsenClient extends GameServerWriteClient {
     this.socket.on("allow_announce", this.handleEventAllowAnnounce.bind(this));
     this.socket.on("allow_draw_card", this.handleEventAllowDrawCard.bind(this));
     this.socket.on("allow_play_card", this.handleEventAllowPlayCard.bind(this));
+    this.socket.on("allow_close_talon", this.handleEventAllowCloseTalon.bind(this));
     this.socket.on("announce", this.handleEventAnnouncement.bind(this));
     this.socket.on("can_announce", this.handleEventCanAnnounce.bind(this));
     this.socket.on(
@@ -119,6 +126,7 @@ export default class SchnapsenClient extends GameServerWriteClient {
       "card_unavailable",
       this.handleEventCardUnavailable.bind(this)
     );
+    this.socket.on("close_talon", this.handleEventCloseTalon.bind(this));
     this.socket.on("final_result", this.handleEventFinalResult.bind(this));
     this.socket.on(
       "finished_distribution",
@@ -144,10 +152,6 @@ export default class SchnapsenClient extends GameServerWriteClient {
     );
 
     this.socket.on("score", this.handleEventScore.bind(this));
-
-    this.socket.onAny((event, ...args) => {
-      console.log(event, args);
-    });
 
     this.on("self:active", this.onSelfActive.bind(this));
     this.on("self:inactive", this.onSelfInactive.bind(this));
@@ -242,6 +246,14 @@ export default class SchnapsenClient extends GameServerWriteClient {
     return 0;
   }
 
+  public get isTalonClosed(): boolean {
+    return this._talonClosedBy != null;
+  }
+
+  public get talonClosedBy(): string | null {
+    return this._talonClosedBy;
+  }
+
   public get firstTrick(): [Card, Card] | undefined {
     return this._tricks.get(this.userId)?.at(0);
   }
@@ -285,6 +297,10 @@ export default class SchnapsenClient extends GameServerWriteClient {
 
   public get allowPlayCard(): boolean {
     return this._allowPlayCard;
+  }
+
+  public get allowCloseTalon(): boolean {
+    return this._allowCloseTalon;
   }
 
   public get allowDrawCard(): boolean {
@@ -361,6 +377,11 @@ export default class SchnapsenClient extends GameServerWriteClient {
     this.emit("self:allow_play_card");
   }
 
+  protected handleEventAllowCloseTalon() {
+    this._allowCloseTalon = true;
+    this.emit("self:allow_close_talon");
+  }
+
   protected handleEventActive(event: Active) {
     this._active = event.data.user_id;
     if (event.data.user_id === this.userId) {
@@ -373,6 +394,7 @@ export default class SchnapsenClient extends GameServerWriteClient {
     this._allowDrawCard = false;
     this._allowPlayCard = false;
     this._allowAnnounce = false;
+    this._allowCloseTalon = false;
   }
 
   protected handleEventInactive(event: Inactive) {
@@ -482,6 +504,14 @@ export default class SchnapsenClient extends GameServerWriteClient {
   protected handleEventCardPlayable(event: CardPlayable) {
     this._playableCards.push(event.data);
     this.emit("self:card_playable", event.data);
+  }
+
+  protected handleEventCloseTalon(event: CloseTalonEvent) {
+    this._talonClosedBy = event.data.user_id;
+    this.emit("close_talon", event);
+    if (event.data.user_id === this.userId) {
+      this.emit("self:close_talon");
+    }
   }
 
   protected handleEventFinalResult(event: FinalResult) {
