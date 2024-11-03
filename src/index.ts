@@ -82,6 +82,7 @@ interface SchnapsenClientEvents {
 export default class SchnapsenClient extends GameServerWriteClient {
   private _announcements: Map<string, Announcement[]> = new Map();
   private _isActive: boolean = false;
+  private _players: Set<string> = new Set();
   private _cards: Card[] = [];
   private _trump: Card | null = null;
   private _ready: boolean = false;
@@ -156,9 +157,6 @@ export default class SchnapsenClient extends GameServerWriteClient {
     this.on("self:active", this.onSelfActive.bind(this));
     this.on("self:inactive", this.onSelfInactive.bind(this));
 
-    this.on("self:trump_change", (event: TrumpChange) => {
-      this._trump = event.data;
-    });
   }
 
   public get cardsAvailable(): Card[] {
@@ -179,6 +177,15 @@ export default class SchnapsenClient extends GameServerWriteClient {
 
   public get cardsPlayable(): Card[] {
     return this._playableCards;
+  }
+
+  public get enemyId(): string {
+    for (const player of this._players) {
+      if (player !== this.userId) {
+        return player;
+      }
+    }
+    return "server";
   }
 
   public get tricks(): [Card, Card][] {
@@ -383,6 +390,7 @@ export default class SchnapsenClient extends GameServerWriteClient {
   }
 
   protected handleEventActive(event: Active) {
+    this._players.add(event.data.user_id);
     this._active = event.data.user_id;
     if (event.data.user_id === this.userId) {
       this.emit("self:active");
@@ -398,6 +406,7 @@ export default class SchnapsenClient extends GameServerWriteClient {
   }
 
   protected handleEventInactive(event: Inactive) {
+    this._players.add(event.data.user_id);
     if (event.data.user_id === this.userId) {
       this.resetGuards();
       this.emit("self:inactive");
@@ -449,6 +458,7 @@ export default class SchnapsenClient extends GameServerWriteClient {
     if (this._trump == null || event.data == null) {
       user_id = "server";
     }
+    this._trump = event.data;
     this.emit("trump_change", { user_id, card: event.data });
 
     if (this._active === this.userId) {
@@ -543,12 +553,12 @@ export default class SchnapsenClient extends GameServerWriteClient {
   }
 
   protected handleEventAnnouncement(event: AnnouncementEvent) {
-    this._announcing.set(event.data.user_id, event.data);
+    this._announcing.set(event.data.user_id, event.data.announcement);
 
     console.log("Announcing " + this._announcing);
 
     this._announcements.set(event.data.user_id, [
-      event.data,
+      event.data.announcement,
       ...(this._announcements.get(event.data.user_id) ?? []),
     ]);
 
@@ -577,8 +587,8 @@ export default class SchnapsenClient extends GameServerWriteClient {
   protected handleEventCannotAnnounce(event: CannotAnnounce) {
     this._announceable.filter(
       (announce) =>
-        announce.data.announce_type !== event.data.announce_type ||
-        announce.data.cards[0].suit !== event.data.cards[0].suit
+        announce.data.announcement.announce_type !== event.data.announcement.announce_type ||
+        announce.data.announcement.cards[0].suit !== event.data.announcement.cards[0].suit
     );
     this.emit("self:cannot_announce", event);
   }

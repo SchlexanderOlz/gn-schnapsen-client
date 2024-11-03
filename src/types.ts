@@ -95,8 +95,10 @@ export interface RoundResult extends Event {
 
 export interface CanAnnounce extends Event {
   data: {
-    cards: [Card, Card];
-    announce_type: "Forty" | "Twenty";
+    announcement: {
+      cards: [Card, Card];
+      announce_type: "Forty" | "Twenty";
+    }
   };
 }
 
@@ -108,8 +110,10 @@ export interface Announcement {
 export interface AnnouncementEvent extends CanAnnounce {
   data: {
     user_id: string;
-    cards: [Card, Card];
-    announce_type: "Forty" | "Twenty";
+    announcement: {
+      cards: [Card, Card];
+      announce_type: "Forty" | "Twenty";
+    }
   };
 }
 

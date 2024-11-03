@@ -88,7 +88,7 @@ instance.on("match", (client: SchnapsenClient) => {
         await sleep(100);
     }
     stop = true;
-    client.announce20(event.data.cards);
+    client.announce20(event.data.announcement.cards);
     client.playCard(client.cardsPlayable[0]);
     await sleep(1000)
     stop = false;
