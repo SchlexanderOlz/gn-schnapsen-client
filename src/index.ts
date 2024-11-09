@@ -58,7 +58,7 @@ interface SchnapsenClientEvents {
   "self:allow_draw_card": null;
   "self:allow_play_card": null;
   "self:allow_close_talon": null;
-  "self:announcement": CanAnnounce;
+  "self:announcement": AnnouncementEvent;
   "self:card_available": CardAvailable;
   "self:card_not_playable": Card;
   "self:card_playable": Card;
