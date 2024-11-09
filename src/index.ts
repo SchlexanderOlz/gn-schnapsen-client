@@ -141,7 +141,6 @@ export default class SchnapsenClient extends GameServerWriteClient {
     this.socket.on("play_card", this.handleEventPlayCard.bind(this));
     this.socket.on("result", this.handleEventRoundResult.bind(this));
     this.socket.on("timeout", this.handleEventTimeout.bind(this));
-    this.socket.onAny((event) => console.log(event));
 
     this.socket.on("trick", this.handleEventTrick.bind(this));
     this.socket.on("trump_change", this.handleEventTrumpChange.bind(this));
@@ -607,8 +606,8 @@ export default class SchnapsenClient extends GameServerWriteClient {
   protected handleEventCannotAnnounce(event: CannotAnnounce) {
     this._announceable.filter(
       (announce) =>
-        announce.data.announcement.announce_type !== event.data.announcement.announce_type ||
-        announce.data.announcement.cards[0].suit !== event.data.announcement.cards[0].suit
+        announce.data.announce_type !== event.data.announce_type ||
+        announce.data.cards[0].suit !== event.data.cards[0].suit
     );
     this.emit("self:cannot_announce", event);
   }
