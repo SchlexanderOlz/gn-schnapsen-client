@@ -10,11 +10,12 @@ import {
 import SchnapsenClient,  { SchnapsenClientBuilder } from "../src/index";
 
 let instance = new MatchMaker(
-  "https://matchmaking.jjhost.at",
+  "http://localhost:4000",
   "saus" + Math.random(),
   new SchnapsenClientBuilder()
 );
 let info: SearchInfo = {
+  region: "eu",
   game: "Schnapsen",
   mode: {
     name: "duo",
@@ -88,7 +89,7 @@ instance.on("match", (client: SchnapsenClient) => {
         await sleep(100);
     }
     stop = true;
-    client.announce20(event.data.announcement.cards);
+    client.announce20(event.data.cards);
     client.playCard(client.cardsPlayable[0]);
     await sleep(1000)
     stop = false;
@@ -112,6 +113,11 @@ instance.on("match", (client: SchnapsenClient) => {
 
   client.on("final_result", (event) => {
   });
+
+  client.on("timeout", (event) => {
+    console.log("Timeout by " + event.user_id);
+  })
+
 
   client.on("round_result", (result) => {
     client.disconnect();

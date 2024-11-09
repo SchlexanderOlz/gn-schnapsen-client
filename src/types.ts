@@ -95,10 +95,8 @@ export interface RoundResult extends Event {
 
 export interface CanAnnounce extends Event {
   data: {
-    announcement: {
       cards: [Card, Card];
       announce_type: "Forty" | "Twenty";
-    }
   };
 }
 
@@ -107,7 +105,7 @@ export interface Announcement {
   cards: [Card, Card];
   announce_type: "Forty" | "Twenty";
 }
-export interface AnnouncementEvent extends CanAnnounce {
+export interface AnnouncementEvent extends Event {
   data: {
     user_id: string;
     announcement: {
@@ -121,3 +119,8 @@ export interface TrumpChangePossible extends Event {
   data: Card;
 }
 export interface TrumpChangeImpossible extends TrumpChangePossible {}
+
+export interface TimeoutEvent {
+    user_id: string;
+    reason: string;
+}

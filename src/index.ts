@@ -29,6 +29,7 @@ import type {
   Score,
   Announcement,
   CloseTalonEvent,
+  TimeoutEvent,
 } from "./types.js";
 export * as types from "./types.js";
 
@@ -48,6 +49,7 @@ interface SchnapsenClientEvents {
   trick: Trick;
   enemy_receive_card: AddCard;
   enemy_play_card: PlayCard;
+  timeout: TimeoutEvent;
   deck_card_count_change: number; // Number of cards in the deck
 
   // Player Events
@@ -70,6 +72,7 @@ interface SchnapsenClientEvents {
   "self:play_card": { card: Card; announcement?: Announcement };
   "self:result_match": number;
   "self:score": number;
+  "self:timeout": null;
   "self:trick": [Card, Card];
   "self:trump_change": TrumpChange;
   "self:trump_change_impossible": TrumpChangeImpossible;
@@ -101,6 +104,7 @@ export default class SchnapsenClient extends GameServerWriteClient {
   private _allowDrawCard: boolean = false;
   private _allowCloseTalon: boolean = false;
   private _talonClosedBy: string | null = null;
+  private _exited: boolean = false;
 
   constructor(userId: string, match: Match) {
     super(userId, match);
@@ -136,6 +140,9 @@ export default class SchnapsenClient extends GameServerWriteClient {
     this.socket.on("inactive", this.handleEventInactive.bind(this));
     this.socket.on("play_card", this.handleEventPlayCard.bind(this));
     this.socket.on("result", this.handleEventRoundResult.bind(this));
+    this.socket.on("timeout", this.handleEventTimeout.bind(this));
+    this.socket.onAny((event) => console.log(event));
+
     this.socket.on("trick", this.handleEventTrick.bind(this));
     this.socket.on("trump_change", this.handleEventTrumpChange.bind(this));
     this.socket.on(
@@ -312,6 +319,10 @@ export default class SchnapsenClient extends GameServerWriteClient {
 
   public get allowDrawCard(): boolean {
     return this._allowDrawCard;
+  }
+
+  public get exited(): boolean {
+    return this._exited;
   }
 
   public on<K extends keyof SchnapsenClientEvents>(
@@ -508,6 +519,7 @@ export default class SchnapsenClient extends GameServerWriteClient {
       event.data.user_id,
       (this._cardCount.get(event.data.user_id) ?? 0) + 1
     );
+    this._players.add(event.data.user_id);
     this.emit("enemy_receive_card", event);
   }
 
@@ -537,6 +549,14 @@ export default class SchnapsenClient extends GameServerWriteClient {
     if (event.data.winner == this.userId)
       this.emit("self:won_round", event.data.points);
     else this.emit("self:lost_round", event.data.points);
+  }
+
+  protected handleEventTimeout(event: TimeoutEvent) {
+    this.emit("timeout", event);
+    if (event.user_id === this.userId) {
+      this._exited = true;
+      this.emit("self:timeout");
+    }
   }
 
   protected handleEventScore(event: Score) {
