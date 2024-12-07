@@ -58,6 +58,7 @@ interface SchnapsenClientEvents {
   "self:allow_draw_card": null;
   "self:allow_play_card": null;
   "self:allow_close_talon": null;
+  "self:allow_swap_trump": null;
   "self:announcement": AnnouncementEvent;
   "self:card_available": CardAvailable;
   "self:card_not_playable": Card;
@@ -102,12 +103,15 @@ export default class SchnapsenClient extends GameServerWriteClient {
   private _allowAnnounce: boolean = false;
   private _allowPlayCard: boolean = false;
   private _allowDrawCard: boolean = false;
+  private _allowSwapTrump: boolean = false;
   private _allowCloseTalon: boolean = false;
   private _talonClosedBy: string | null = null;
   private _exited: boolean = false;
 
   constructor(userId: string, match: Match) {
     super(userId, match);
+
+    this.socket.onAny((event) => console.log(event))
 
     this.socket.on("active", this.handleEventActive.bind(this));
     this.socket.on("allow_announce", this.handleEventAllowAnnounce.bind(this));
@@ -116,6 +120,7 @@ export default class SchnapsenClient extends GameServerWriteClient {
     this.socket.on("allow_close_talon", this.handleEventAllowCloseTalon.bind(this));
     this.socket.on("announce", this.handleEventAnnouncement.bind(this));
     this.socket.on("can_announce", this.handleEventCanAnnounce.bind(this));
+    this.socket.on("allow_swap_trump", this.handleEventAllowSwapTrump.bind(this))
     this.socket.on(
       "cannot_announce",
       this.handleEventCannotAnnounce.bind(this)
@@ -320,6 +325,10 @@ export default class SchnapsenClient extends GameServerWriteClient {
     return this._allowDrawCard;
   }
 
+  public get allowSwapTrump(): boolean {
+    return this._allowSwapTrump;
+  }
+
   public get exited(): boolean {
     return this._exited;
   }
@@ -389,6 +398,11 @@ export default class SchnapsenClient extends GameServerWriteClient {
     this.emit("self:allow_draw_card");
   }
 
+  protected handleEventAllowSwapTrump() {
+    this._allowSwapTrump = true;
+    this.emit("self:allow_swap_trump");
+  }
+
   protected handleEventAllowPlayCard() {
     this._allowPlayCard = true;
     this.emit("self:allow_play_card");
@@ -402,7 +416,7 @@ export default class SchnapsenClient extends GameServerWriteClient {
   protected handleEventActive(event: Active) {
     this._players.add(event.data.user_id);
     this._active = event.data.user_id;
-    if (event.data.user_id === this.userId) {
+    if (event.data.user_id === this.userId || true) {
       this.emit("self:active");
     }
     this.emit("active", event);
@@ -413,6 +427,7 @@ export default class SchnapsenClient extends GameServerWriteClient {
     this._allowPlayCard = false;
     this._allowAnnounce = false;
     this._allowCloseTalon = false;
+    this._allowSwapTrump = false;
   }
 
   protected handleEventInactive(event: Inactive) {
