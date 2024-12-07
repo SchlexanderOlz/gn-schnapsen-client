@@ -9,25 +9,27 @@ import {
 
 import SchnapsenClient,  { SchnapsenClientBuilder } from "../src/index";
 
+const sessionToken = process.argv[2] ? process.argv[2] : "test";
+
+
 let instance = new MatchMaker(
-  "http://localhost:4000",
+  "http://127.0.0.1:4000",
   "saus" + Math.random(),
+  sessionToken,
   new SchnapsenClientBuilder()
 );
 let info: SearchInfo = {
-  region: "eu",
+  region: "eu-central-1",
   game: "Schnapsen",
-  mode: {
-    name: "duo",
-    player_count: 2,
-    computer_lobby: false,
-  },
+  mode: "duo",
+  ai: true
 };
 instance.search(info);
 
 instance.on("_servers", (servers) => {
   console.log(servers);
 });
+
 
 instance.on("match", (client: SchnapsenClient) => {
   console.log("Match found");
@@ -36,18 +38,24 @@ instance.on("match", (client: SchnapsenClient) => {
   let wait = false;
 
   let onActive = async () => {
-
     await sleep(800);
     if (stop) return;
     while (wait) {
       await sleep(100);
     }
 
+    if (!client.allowPlayCard) {
+      return;
+    }
+
+    console.log("Playing card");
+
     client.playCard(
       client.cardsPlayable[
         Math.floor(Math.random() * client.cardsPlayable.length)
       ]
     );
+
   };
 
   client.on("self:allow_draw_card", async () => {
@@ -55,13 +63,8 @@ instance.on("match", (client: SchnapsenClient) => {
     client.drawCard();
   });
 
-  client.on("self:allow_close_talon", async () => {
-    console.log("Close Talon");
-    wait = true;
-    client.closeTalon();
-    await sleep(200);
-    wait = false;
-  })
+  client.on("self:card_playable", (event) => console.log(event))
+
 
 
   client.on("enemy_play_card", (event) => {
@@ -79,6 +82,7 @@ instance.on("match", (client: SchnapsenClient) => {
   });
 
   client.on("self:trick", (trick) => {
+    console.log(trick);
   });
 
   client.on("self:card_available", (event) => {
@@ -89,7 +93,10 @@ instance.on("match", (client: SchnapsenClient) => {
         await sleep(100);
     }
     stop = true;
+
     client.announce20(event.data.cards);
+
+    await sleep(1000)
     client.playCard(client.cardsPlayable[0]);
     await sleep(1000)
     stop = false;

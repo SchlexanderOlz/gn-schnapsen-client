@@ -21,6 +21,7 @@ export interface Card {
 export interface Event {
   event: string;
   data: any;
+  timestamp: number;
 }
 
 interface UserIdEvent extends Event {
