@@ -26,12 +26,9 @@ let info: SearchInfo = {
 };
 instance.search(info);
 
-instance.on("_servers", (servers) => {
-  console.log(servers);
-});
-
 
 instance.on("match", (client: SchnapsenClient) => {
+
   console.log("Match found");
 
   let stop = false;
@@ -59,7 +56,6 @@ instance.on("match", (client: SchnapsenClient) => {
   };
 
   client.on("self:allow_draw_card", async () => {
-    await sleep(1000);
     client.drawCard();
   });
 

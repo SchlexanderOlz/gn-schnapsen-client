@@ -356,32 +356,26 @@ export default class SchnapsenClient extends GameServerWriteClient {
   }
 
   playCard(card: Card) {
-    if (!this._isActive) return;
     this.socket.emit("play_card", card);
   }
 
   swapTrump(card: Card) {
-    if (!this._isActive) return;
     this.socket.emit("swap_trump", card);
   }
 
   closeTalon() {
-    if (!this._isActive) return;
     this.socket.emit("close_talon");
   }
 
   announce20(cards: Card[]) {
-    if (!this._isActive) return;
     this.socket.emit("announce_20", cards);
   }
 
   announce40() {
-    if (!this._isActive) return;
     this.socket.emit("announce_40");
   }
 
   drawCard() {
-    if (!this._isActive) return;
     this.socket.emit("draw_card");
   }
 
