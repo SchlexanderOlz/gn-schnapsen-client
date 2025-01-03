@@ -245,7 +245,7 @@ export default class SchnapsenClient extends GameServerWriteClient {
     return 0;
   }
 
-  // NOTE: Alle enemy... function do only work for duo-schnapsen. Fix this for other modes!
+  // NOTE: All enemy... functions do only work for duo-schnapsen. Fix this for other modes!
   public get enemyFirstTrick(): [Card, Card] | undefined {
     for (const key of this._tricks.keys()) {
       if (key !== this.userId) {
@@ -505,7 +505,7 @@ export default class SchnapsenClient extends GameServerWriteClient {
 
     event.data.announcement = announcement;
 
-    if (event.data.user_id == this.userId) {
+    if (event.data.user_id === this.userId) {
       this.emit("self:play_card", event.data);
     } else {
       this.emit("enemy_play_card", event);

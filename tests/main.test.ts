@@ -22,7 +22,7 @@ let info: SearchInfo = {
   region: "eu-central-1",
   game: "Schnapsen",
   mode: "duo",
-  ai: true
+  ai: "Kolfgang Woscher"
 };
 instance.search(info);
 
