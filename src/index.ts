@@ -2,6 +2,7 @@ import {
   GameServerWriteClient,
   MatchMaker,
   type GameServerClientBuilder,
+  type GameServerWriteClientEvents,
   type Match,
   type SearchInfo,
 } from "gn-matchmaker-client";
@@ -33,7 +34,7 @@ import type {
 } from "./types.js";
 export * as types from "./types.js";
 
-interface SchnapsenClientEvents {
+interface SchnapsenClientEvents extends GameServerWriteClientEvents {
   // General Events
   active: Active;
   announcement: AnnouncementEvent;
@@ -55,7 +56,6 @@ interface SchnapsenClientEvents {
   // Player Events
   "self:active": null;
   "self:allow_announce": null;
-  "self:allow_draw_card": null;
   "self:allow_play_card": null;
   "self:allow_close_talon": null;
   "self:allow_swap_trump": null;
@@ -102,6 +102,10 @@ export default class SchnapsenClient extends GameServerWriteClient {
   private _scores: Map<string, number> = new Map();
   private _allowAnnounce: boolean = false;
   private _allowPlayCard: boolean = false;
+
+  /**
+   * @deprecated
+   */
   private _allowDrawCard: boolean = false;
   private _allowSwapTrump: boolean = false;
   private _allowCloseTalon: boolean = false;
@@ -111,11 +115,9 @@ export default class SchnapsenClient extends GameServerWriteClient {
   constructor(userId: string, match: Match) {
     super(userId, match);
 
-    this.socket.onAny((event) => console.log(event))
 
     this.socket.on("active", this.handleEventActive.bind(this));
     this.socket.on("allow_announce", this.handleEventAllowAnnounce.bind(this));
-    this.socket.on("allow_draw_card", this.handleEventAllowDrawCard.bind(this));
     this.socket.on("allow_play_card", this.handleEventAllowPlayCard.bind(this));
     this.socket.on("allow_close_talon", this.handleEventAllowCloseTalon.bind(this));
     this.socket.on("announce", this.handleEventAnnouncement.bind(this));
@@ -321,6 +323,9 @@ export default class SchnapsenClient extends GameServerWriteClient {
     return this._allowCloseTalon;
   }
 
+  /**
+   * @deprecated
+   */
   public get allowDrawCard(): boolean {
     return this._allowDrawCard;
   }
@@ -337,6 +342,7 @@ export default class SchnapsenClient extends GameServerWriteClient {
     event: K,
     listener: (payload: SchnapsenClientEvents[K]) => void
   ): this {
+    // @ts-ignore
     return super.on(event, listener);
   }
 
@@ -344,6 +350,7 @@ export default class SchnapsenClient extends GameServerWriteClient {
     event: K,
     payload?: SchnapsenClientEvents[K]
   ): boolean {
+    // @ts-ignore
     return super.emit(event, payload);
   }
 
@@ -375,6 +382,9 @@ export default class SchnapsenClient extends GameServerWriteClient {
     this.socket.emit("announce_40");
   }
 
+  /**
+   * @deprecated This action is automatically performed on the serverside
+   */
   drawCard() {
     this.socket.emit("draw_card");
   }
@@ -387,10 +397,6 @@ export default class SchnapsenClient extends GameServerWriteClient {
     this.socket.emit("take_cards", index, (err: any) => {});
   }
 
-  protected handleEventAllowDrawCard() {
-    this._allowDrawCard = true;
-    this.emit("self:allow_draw_card");
-  }
 
   protected handleEventAllowSwapTrump() {
     this._allowSwapTrump = true;

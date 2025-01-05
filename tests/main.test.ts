@@ -7,10 +7,9 @@ import {
   type SearchInfo,
 } from "gn-matchmaker-client";
 
-import SchnapsenClient,  { SchnapsenClientBuilder } from "../src/index";
+import SchnapsenClient, { SchnapsenClientBuilder } from "../src/index";
 
 const sessionToken = process.argv[2] ? process.argv[2] : "test";
-
 
 let instance = new MatchMaker(
   "http://127.0.0.1:4000",
@@ -22,12 +21,14 @@ let info: SearchInfo = {
   region: "eu-central-1",
   game: "Schnapsen",
   mode: "duo",
-  ai: "Kolfgang Woscher"
+  ai: "Kolfgang Woscher",
 };
 instance.search(info);
 
-
 instance.on("match", (client: SchnapsenClient) => {
+  client.on("timeout_in", (secs: number) => {
+    console.log("Timeout in " + secs);
+  });
 
   console.log("Match found");
 
@@ -52,22 +53,13 @@ instance.on("match", (client: SchnapsenClient) => {
         Math.floor(Math.random() * client.cardsPlayable.length)
       ]
     );
-
   };
 
-  client.on("self:allow_draw_card", async () => {
-    client.drawCard();
-  });
+  client.on("self:card_playable", (event) => console.log(event));
 
-  client.on("self:card_playable", (event) => console.log(event))
+  client.on("enemy_play_card", (event) => {});
 
-
-
-  client.on("enemy_play_card", (event) => {
-  })
-
-  client.on("enemy_receive_card", (event) => {
-  })
+  client.on("enemy_receive_card", (event) => {});
 
   client.on("self:allow_play_card", onActive);
 
@@ -81,46 +73,39 @@ instance.on("match", (client: SchnapsenClient) => {
     console.log(trick);
   });
 
-  client.on("self:card_available", (event) => {
-  });
+  client.on("self:card_available", (event) => {});
 
   client.on("self:can_announce", async (event) => {
     while (!client.allowAnnounce) {
-        await sleep(100);
+      await sleep(100);
     }
     stop = true;
 
     client.announce20(event.data.cards);
 
-    await sleep(1000)
+    await sleep(1000);
     client.playCard(client.cardsPlayable[0]);
-    await sleep(1000)
+    await sleep(1000);
     stop = false;
-  })
+  });
 
   client.on("close_talon", (event) => {
     console.log("Close Talon by " + event.data.user_id);
-  })
-
-  client.on("self:allow_play_card", () => {
   });
 
-  client.on("self:allow_announce", (event) => {
-  });
+  client.on("self:allow_play_card", () => {});
 
-  client.on("self:cannot_announce", (event) => {
-  })
+  client.on("self:allow_announce", (event) => {});
 
-  client.on("self:card_unavailable", (event) => {
-  });
+  client.on("self:cannot_announce", (event) => {});
 
-  client.on("final_result", (event) => {
-  });
+  client.on("self:card_unavailable", (event) => {});
+
+  client.on("final_result", (event) => {});
 
   client.on("timeout", (event) => {
     console.log("Timeout by " + event.user_id);
-  })
-
+  });
 
   client.on("round_result", (result) => {
     client.disconnect();
@@ -142,5 +127,5 @@ instance.on("match", (client: SchnapsenClient) => {
   client.on("self:score", (event) => {
     console.log("SCORE SCORE SCORE");
     console.log("Score: " + client.score);
-  })
+  });
 });
