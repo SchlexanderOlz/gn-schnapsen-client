@@ -50,7 +50,6 @@ interface SchnapsenClientEvents extends GameServerWriteClientEvents {
   trick: Trick;
   enemy_receive_card: AddCard;
   enemy_play_card: PlayCard;
-  timeout: TimeoutEvent;
   deck_card_count_change: number; // Number of cards in the deck
 
   // Player Events
@@ -147,7 +146,6 @@ export default class SchnapsenClient extends GameServerWriteClient {
     this.socket.on("inactive", this.handleEventInactive.bind(this));
     this.socket.on("play_card", this.handleEventPlayCard.bind(this));
     this.socket.on("result", this.handleEventRoundResult.bind(this));
-    this.socket.on("timeout", this.handleEventTimeout.bind(this));
 
     this.socket.on("trick", this.handleEventTrick.bind(this));
     this.socket.on("trump_change", this.handleEventTrumpChange.bind(this));
@@ -167,9 +165,10 @@ export default class SchnapsenClient extends GameServerWriteClient {
 
     this.socket.on("score", this.handleEventScore.bind(this));
 
+    super.on("timeout", this.handleEventTimeout.bind(this));
+
     this.on("self:active", this.onSelfActive.bind(this));
     this.on("self:inactive", this.onSelfInactive.bind(this));
-
   }
 
   public get cardsAvailable(): Card[] {
@@ -566,7 +565,6 @@ export default class SchnapsenClient extends GameServerWriteClient {
   }
 
   protected handleEventTimeout(event: TimeoutEvent) {
-    this.emit("timeout", event);
     if (event.user_id === this.userId) {
       this._exited = true;
       this.emit("self:timeout");
