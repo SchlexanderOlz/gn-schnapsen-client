@@ -492,7 +492,6 @@ export default class SchnapsenClient extends GameServerWriteClient {
 
   protected handleEventFinishedDistribution() {
     this._ready = true;
-    console.log("Finished distribution");
     this.emit("finished_distribution");
     if (this._isActive) this.emit("can_play");
   }
@@ -519,7 +518,6 @@ export default class SchnapsenClient extends GameServerWriteClient {
   }
 
   protected handleEventCardNotPlayable(event: CardNotPlayable) {
-    console.log(event);
     this._playableCards = this._playableCards.filter(
       (card) =>
         !(card.suit == event.data.suit && card.value == event.data.value)
@@ -586,8 +584,6 @@ export default class SchnapsenClient extends GameServerWriteClient {
 
   protected handleEventAnnouncement(event: AnnouncementEvent) {
     this._announcing.set(event.data.user_id, event.data.announcement);
-
-    console.log("Announcing " + this._announcing);
 
     this._announcements.set(event.data.user_id, [
       event.data.announcement,

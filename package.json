@@ -21,7 +21,7 @@
   "dependencies": {
     "@types/ping": "^0.4.4",
     "events": "^3.3.0",
-    "gn-matchmaker-client": "^0.1.38",
+    "gn-matchmaker-client": "^0.1.40",
     "socket.io-client": "^4.8.0",
     "typescript": "^5.0.0"
   }
