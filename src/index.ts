@@ -70,7 +70,7 @@ interface SchnapsenClientEvents extends GameServerWriteClientEvents {
   "self:lost_match": number;
   "self:lost_round": number;
   "self:play_card": { card: Card; announcement?: Announcement };
-  "self:result_match": number;
+  "self:bummerl_score": number;
   "self:score": number;
   "self:timeout": null;
   "self:trick": [Card, Card];
@@ -84,6 +84,7 @@ interface SchnapsenClientEvents extends GameServerWriteClientEvents {
 // TODO: Handle failures to send
 export default class SchnapsenClient extends GameServerWriteClient {
   private _announcements: Map<string, Announcement[]> = new Map();
+  private _bummerlScores: Map<string, number> = new Map();
   private _isActive: boolean = false;
   private _players: Set<string> = new Set();
   private _cards: Card[] = [];
@@ -337,6 +338,19 @@ export default class SchnapsenClient extends GameServerWriteClient {
     return this._exited;
   }
 
+  public get bummerlScore(): number {
+    return this._bummerlScores.get(this.userId) ?? 0;
+  }
+
+  public get enemyBummerlScore(): number {
+    for (const key of this._bummerlScores.keys()) {
+      if (key !== this.userId) {
+        return this._bummerlScores.get(key) ?? 0;
+      }
+    }
+    return 0;
+  }
+
   public on<K extends keyof SchnapsenClientEvents>(
     event: K,
     listener: (payload: SchnapsenClientEvents[K]) => void
@@ -396,6 +410,7 @@ export default class SchnapsenClient extends GameServerWriteClient {
     this.socket.emit("take_cards", index, (err: any) => {});
   }
 
+  
 
   protected handleEventAllowSwapTrump() {
     this._allowSwapTrump = true;
@@ -549,7 +564,6 @@ export default class SchnapsenClient extends GameServerWriteClient {
 
   protected handleEventFinalResult(event: FinalResult) {
     this.emit("final_result", event);
-    this.emit("self:result_match", event.data.ranked[this.userId]);
     if (event.data.winner == this.userId)
       this.emit("self:won_match", event.data.ranked[this.userId]);
     else this.emit("self:lost_match", event.data.ranked[this.userId]);
@@ -560,6 +574,34 @@ export default class SchnapsenClient extends GameServerWriteClient {
     if (event.data.winner == this.userId)
       this.emit("self:won_round", event.data.points);
     else this.emit("self:lost_round", event.data.points);
+
+    this.emit("self:bummerl_score", event.data.ranked[this.userId]);
+
+    for (const [userId, score] of Object.entries(event.data.ranked)) {
+      this._bummerlScores.set(userId, score as number);
+    }
+
+    // Reset all
+
+    this._cards = [];
+    this._trump = null;
+    this._ready = false;
+    this._playableCards = [];
+    this._tricks = new Map();
+    this._cardCount = new Map();
+    this._stack = [];
+    this._announceable = [];
+    this._announcing = new Map();
+    this._active = "";
+    this._cardForTrumpChange = null;
+    this._deckCardCount = 9;
+    this._scores = new Map();
+    this._allowAnnounce = false;
+    this._allowPlayCard = false;
+    this._allowSwapTrump = false;
+    this._allowCloseTalon = false;
+    this._talonClosedBy = null;
+    this._exited = false;
   }
 
   protected handleEventTimeout(event: TimeoutEvent) {
