@@ -569,20 +569,7 @@ export default class SchnapsenClient extends GameServerWriteClient {
     else this.emit("self:lost_match", event.data.ranked[this.userId]);
   }
 
-  protected handleEventRoundResult(event: RoundResult) {
-    this.emit("round_result", event);
-    if (event.data.winner == this.userId)
-      this.emit("self:won_round", event.data.points);
-    else this.emit("self:lost_round", event.data.points);
-
-    this.emit("self:bummerl_score", event.data.ranked[this.userId]);
-
-    for (const [userId, score] of Object.entries(event.data.ranked)) {
-      this._bummerlScores.set(userId, score as number);
-    }
-
-    // Reset all
-
+  reset() {
     this._cards = [];
     this._trump = null;
     this._ready = false;
@@ -602,6 +589,19 @@ export default class SchnapsenClient extends GameServerWriteClient {
     this._allowCloseTalon = false;
     this._talonClosedBy = null;
     this._exited = false;
+  }
+
+  protected handleEventRoundResult(event: RoundResult) {
+    this.emit("round_result", event);
+    if (event.data.winner == this.userId)
+      this.emit("self:won_round", event.data.points);
+    else this.emit("self:lost_round", event.data.points);
+
+    this.emit("self:bummerl_score", event.data.ranked[this.userId]);
+
+    for (const [userId, score] of Object.entries(event.data.ranked)) {
+      this._bummerlScores.set(userId, score as number);
+    }
   }
 
   protected handleEventTimeout(event: TimeoutEvent) {
