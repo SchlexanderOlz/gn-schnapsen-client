@@ -5,6 +5,7 @@ import {
   type GameServerWriteClientEvents,
   type Match,
   type SearchInfo,
+  GameServerReadClient,
 } from "gn-matchmaker-client";
 import type {
   Active,
@@ -83,10 +84,10 @@ interface SchnapsenClientEvents extends GameServerWriteClientEvents {
 
 // TODO: Handle failures to send
 export default class SchnapsenClient extends GameServerWriteClient {
-  private _announcements: Map<string, Announcement[]> = new Map();
-  private _bummerlScores: Map<string, number> = new Map();
+  protected _announcements: Map<string, Announcement[]> = new Map();
+  protected _bummerlScores: Map<string, number> = new Map();
+  protected _players: Set<string> = new Set();
   private _isActive: boolean = false;
-  private _players: Set<string> = new Set();
   private _cards: Card[] = [];
   private _trump: Card | null = null;
   private _ready: boolean = false;
@@ -114,7 +115,6 @@ export default class SchnapsenClient extends GameServerWriteClient {
 
   constructor(userId: string, match: Match) {
     super(userId, match);
-
 
     this.socket.on("active", this.handleEventActive.bind(this));
     this.socket.on("allow_announce", this.handleEventAllowAnnounce.bind(this));
@@ -170,6 +170,7 @@ export default class SchnapsenClient extends GameServerWriteClient {
 
     this.on("self:active", this.onSelfActive.bind(this));
     this.on("self:inactive", this.onSelfInactive.bind(this));
+
   }
 
   public get cardsAvailable(): Card[] {

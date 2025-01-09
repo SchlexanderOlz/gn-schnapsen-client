@@ -17,7 +17,8 @@ let timeout_count = 0;
 
 const createClient = (index: number) => {
   let instance = new MatchMaker(
-    "http://127.0.0.1:4000",
+    // "http://127.0.0.1:4000",
+    "https://matchmaking.jjhost.at",
     "saus" + Math.random(),
     sessionToken,
     new SchnapsenClientBuilder()
@@ -25,7 +26,9 @@ const createClient = (index: number) => {
   let info: SearchInfo = {
     region: "eu-central-1",
     game: "Schnapsen",
-    mode: "duo",
+    mode: "speed",
+    allow_reconnect: true,
+    ai: "*"
   };
   instance.search(info);
 

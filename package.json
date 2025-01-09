@@ -1,6 +1,6 @@
 {
   "name": "gn-schnapsen-client",
-  "version": "0.1.38",
+  "version": "0.1.41",
   "exports": "./index.js",
   "type": "module",
   "scripts": {
@@ -21,7 +21,8 @@
   "dependencies": {
     "@types/ping": "^0.4.4",
     "events": "^3.3.0",
-    "gn-matchmaker-client": "^0.1.40",
+    "gn-matchmaker-client": "^0.1.46",
+    "magical-mixin": "^0.1.0",
     "socket.io-client": "^4.8.0",
     "typescript": "^5.0.0"
   }
