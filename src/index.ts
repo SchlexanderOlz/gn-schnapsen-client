@@ -52,6 +52,7 @@ interface SchnapsenClientEvents extends GameServerWriteClientEvents {
   enemy_receive_card: AddCard;
   enemy_play_card: PlayCard;
   deck_card_count_change: number; // Number of cards in the deck
+  reset: null
 
   // Player Events
   "self:active": null;
@@ -128,6 +129,7 @@ export default class SchnapsenClient extends GameServerWriteClient {
       this.handleEventCannotAnnounce.bind(this)
     );
     this.socket.on("receive_card", this.handleEventReceiveCard.bind(this));
+    this.socket.on("reset", this.handleEventReset.bind(this));
     this.socket.on("card_available", this.handleEventCardAvailable.bind(this));
     this.socket.on(
       "card_not_playable",
@@ -469,6 +471,11 @@ export default class SchnapsenClient extends GameServerWriteClient {
     }
 
     this.emit("trick", event);
+  }
+
+  protected handleEventReset() {
+    this.reset();
+    this.emit("reset")
   }
 
   protected handleEventCardAvailable(event: CardAvailable) {

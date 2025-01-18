@@ -1,6 +1,6 @@
 {
   "name": "gn-schnapsen-client",
-  "version": "0.1.41",
+  "version": "0.1.42",
   "exports": "./index.js",
   "type": "module",
   "scripts": {
