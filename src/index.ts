@@ -586,6 +586,7 @@ export default class SchnapsenClient extends GameServerWriteClient {
     this._cardCount = new Map();
     this._stack = [];
     this._announceable = [];
+    this._announcements = new Map();
     this._announcing = new Map();
     this._active = "";
     this._cardForTrumpChange = null;

@@ -19,15 +19,15 @@ const createClient = (index: number) => {
   let instance = new MatchMaker(
     // "http://127.0.0.1:4000",
     "https://matchmaking.jjhost.at",
-    "saus" + Math.random(),
+    "6780f0915601631dee18f7dd",
     sessionToken,
     new SchnapsenClientBuilder()
   );
   let info: SearchInfo = {
     region: "eu-central-1",
     game: "Schnapsen",
-    mode: "speed",
-    allow_reconnect: true,
+    mode: "bummerl",
+    allow_reconnect: false,
     ai: "*"
   };
   instance.search(info);
