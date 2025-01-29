@@ -488,10 +488,6 @@ export default class SchnapsenClient extends GameServerWriteClient {
       (card) =>
         !(card.suit == event.data.suit && card.value == event.data.value)
     );
-    this._playableCards = this._playableCards.filter(
-      (card) =>
-        !(card.suit == event.data.suit && card.value == event.data.value)
-    );
     this.emit("self:card_unavailable", event);
   }
 
